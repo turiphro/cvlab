@@ -4,7 +4,7 @@ import PIL
 import cv2
 
 from . import convert
-from .ImageType import ImageType
+from .image_type import ImageType
 
 
 # Image abstraction supporting multiple image formats.
@@ -13,12 +13,7 @@ from .ImageType import ImageType
 # within a class you can use the underlying data format directly.
 class Image:
     orig_type = ImageType.UNSET
-
-    img = {
-        ImageType.NUMPY: None,
-        ImageType.OPENCV: None,
-        ImageType.PILLOW: None,
-    }
+    img = {ImageType.UNSET: None}
 
     def __init__(self, img, copy=True, opencv=False):
         """
@@ -30,6 +25,12 @@ class Image:
         opencv: whether the image is an opencv image (e.g., numpy but in BGR format)
         """
         self.orig_type = convert.get_type(img, opencv=opencv)
+
+        self.img = {
+            ImageType.NUMPY: None,
+            ImageType.OPENCV: None,
+            ImageType.PILLOW: None,
+        }
 
         if self.orig_type == ImageType.OPENCV:
             self.img[ImageType.OPENCV] = img.copy() if copy else img

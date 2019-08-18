@@ -2,7 +2,7 @@ import numpy as np
 import PIL
 import cv2
 
-from .ImageType import ImageType
+from .image_type import ImageType
 
 # Various conversion functions
 
