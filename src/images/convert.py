@@ -1,6 +1,6 @@
 import numpy as np
-import PIL
 import cv2
+from PIL.Image import Image as PILImage
 
 from .image_type import ImageType
 
@@ -14,7 +14,7 @@ def get_type(img, opencv=False):
         img_type = ImageType.OPENCV
     elif isinstance(img, np.ndarray):
         img_type = ImageType.NUMPY
-    elif isinstance(img, PIL.Image.Image):
+    elif isinstance(img, PILImage):
         img_type = ImageType.PILLOW
     else:
         raise ValueError("Unknown type: {}".format(type(img)))

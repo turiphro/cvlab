@@ -1,7 +1,4 @@
 import argparse
-import os
-import sys
-sys.path.insert(0, os.path.join(sys.path[0], '..'))
 import cv2
 import importlib
 
@@ -24,8 +21,8 @@ def parse_args():
 
 
 def load_class(classname, prefix="inference"):
-    _mod = args.inference[:args.inference.rfind('.')]
-    _class = args.inference[args.inference.rfind('.')+1:]
+    _mod = args.inference[:classname.rfind('.')]
+    _class = args.inference[classname.rfind('.')+1:]
     print("Inference:", _mod, _class)
     inference_mod = importlib.import_module("{}.{}".format(prefix, _mod))
     inference_class = getattr(inference_mod, _class)
@@ -46,12 +43,15 @@ def main(args):
             output_images = inference.process(input_images)
 
             for name, image in output_images.items():
-                frame_image = image.get(ImageType.OPENCV)
-                if frame_image is not False:
+                if image is not None:
+                    frame_image = image.get(ImageType.OPENCV)
                     cv2.imshow(WINDOW_NAME + "::{}".format(name), frame_image)
 
-            if cv2.waitKey(1) & 0xFF == ord('q'):
+            keystroke = chr(cv2.waitKey(1) & 0xFF)
+            if keystroke == 'q':
                 break
+            elif keystroke in inference.KEYSTROKES:
+                inference.handle_keystroke(keystroke)
 
     finally:
         for stream in input_streams:

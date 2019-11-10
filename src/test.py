@@ -1,5 +1,5 @@
-from images.Image import Image
-from images.ImageType import ImageType
+from images.image import Image
+from images.image_type import ImageType
 
 import cv2
 from PIL import Image as PILImage

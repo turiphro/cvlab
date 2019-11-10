@@ -13,7 +13,7 @@ class CameraStream(Stream):
     def get(self, latest=False):
         ret, frame = self.camera_stream.read()
 
-        return Image(frame, opencv=True) if ret else False
+        return Image(frame, opencv=True) if ret else None
 
     def stop(self):
         self.camera_stream.release()

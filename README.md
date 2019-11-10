@@ -12,35 +12,29 @@ prototyping, please do not judge code quality ;)
 Installation (Ubuntu)
 =====================
 
-# General
-# Notes:
-# - pip's pil is Pillow, PIL's fork
-# - pip's matplotlib includes pylab; it needs cairocffi, which needs libffi-dev.
-
+```
 sudo apt-get install python-pip python3-pip python3-numpy python3-dev potrace libgtk2.0-dev libeigen3-dev libavcodec-dev libdc1394-22-dev libjpeg-dev libpng-dev libtiff-dev libjasper-dev libopenni-dev imagemagick libffi-dev
 sudo pip3 install pillow numpy scipy matplotlib cairocffi
+```
 
-# OpenCV
-Compile OpenCV 4.0+, including Python (3) bindings
-
+## OpenCV
+Compile OpenCV 4.0+, including Python (3) bindings:
 https://www.pyimagesearch.com/2018/08/15/how-to-install-opencv-4-on-ubuntu/
 
 
 Tools
 =====
 
-# Interactive terminal
-ipython3
-import pylab as plt
-import numpy as np
-import scipy as sp
+## Inference on webcams
+We can run various inference algorithms on streams of images (e.g., webcams or folders with images).
 
-# For interactive notebook, use:
-ipython3 notebook   # opens in browser
-%pylab inline
+Example:
+
+```
+export PYTHONPATH="$PWD:$PYTHONPATH"
+python3 apps/viewer.py -i 0 1 2 -f classic.OpticalFlow
+```
 
 
-Documentation
-=============
 
 For more notes, see the doc/ directory.
