@@ -81,3 +81,4 @@ class OpticalFlow(Inference):
         if key == 'r':
             print("Resetting tracking")
             self.reset_tracking()
+

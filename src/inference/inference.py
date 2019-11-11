@@ -17,4 +17,4 @@ class Inference:
         """
         Handle keyboard strokes (e.g., commands)
         """
-        raise NotImplementedError()
+        pass  # optional to implement
