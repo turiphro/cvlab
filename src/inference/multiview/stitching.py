@@ -1,4 +1,4 @@
-from .inference import Inference
+from ..inference import Inference
 from images.image import Image
 from images.image_type import ImageType
 
@@ -14,6 +14,7 @@ class Stitching(Inference):
     Expecting 2 camera streams (or images) by default; the second view
     will be the reference point (left unwarped image)
     """
+
     def process(self, images: Sequence[Image]) -> Dict[str, Image]:
         # Based on:
         # https://www.pyimagesearch.com/2016/01/11/opencv-panorama-stitching/

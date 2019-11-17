@@ -35,6 +35,9 @@ export PYTHONPATH="$PWD:$PYTHONPATH"
 python3 apps/viewer.py -i 0 1 2 -f classic.OpticalFlow
 ```
 
+You can find all available algorithms with:
+
+``` grep "(\w+)\(Inference\)" -Eo inference -r ```
 
 
 For more notes, see the doc/ directory.
