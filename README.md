@@ -21,6 +21,23 @@ sudo pip3 install pillow numpy scipy matplotlib cairocffi
 Compile OpenCV 4.0+, including Python (3) bindings:
 https://www.pyimagesearch.com/2018/08/15/how-to-install-opencv-4-on-ubuntu/
 
+    export OPENCV=4.1.2  # 2019-10-10
+    wget -O opencv.zip https://github.com/opencv/opencv/archive/$OPENCV.zip
+    wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/$OPENCV.zip
+    # unzip & rename without version
+    mkdir -p opencv/build/ && cd opencv/build
+    cmake -D CMAKE_BUILD_TYPE=RELEASE \
+	-D CMAKE_INSTALL_PREFIX=/usr/local \
+	-D INSTALL_PYTHON_EXAMPLES=ON \
+	-D INSTALL_C_EXAMPLES=OFF \
+	-D OPENCV_ENABLE_NONFREE=ON \
+	-D OPENCV_EXTRA_MODULES_PATH=$PWD/../../opencv_contrib/modules \
+	-D PYTHON_EXECUTABLE=$(which python3) \
+	-D PYTHON2_EXECUTABLE=$(which python2) \
+	-D BUILD_EXAMPLES=ON ..
+    make -j2
+    sudo make install
+
 
 Tools
 =====

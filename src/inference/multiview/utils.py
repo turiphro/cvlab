@@ -40,3 +40,36 @@ def calibrate_camera(world_coords, img_coords, img_size, crop_alpha=1):
     }
     return camparams
 
+
+def calibrate_camera_pair(world_coords, img_coords_l, img_coords_r,
+                          camparams_l, camparams_r, img_size):
+    # TODO
+    _, _, _, _, _, R, T, _, _ = cv2.stereoCalibrate(
+        world_coords, img_coords_l, img_coords_r,
+        camparams_l["intrinsic"], camparams_l["distortion"],
+        camparams_r["intrinsic"], camparams_r["distortion"],
+        img_size)
+    rect_l, rect_r, proj_l, proj_r, disparity2depth, roi_l, roi_r = cv2.stereoRectify(
+        camparams_l["intrinsic"], camparams_l["distortion"],
+        camparams_r["intrinsic"], camparams_r["distortion"],
+        img_size,
+        R, T)
+    map_x_l, map_y_l = cv2.initUndistortRectifyMap(
+        camparams_l["intrinsic"], camparams_l["distortion"],
+        rect_l, proj_l, img_size, cv2.CV_32FC1)
+    map_x_r, map_y_r = cv2.initUndistortRectifyMap(
+        camparams_r["intrinsic"], camparams_r["distortion"],
+        rect_r, proj_r, img_size, cv2.CV_32FC1)
+
+    pairparams = {
+        "R": R,
+        "T": T,
+        "rect": (rect_l, rect_r),
+        "proj": (proj_l, proj_r),
+        "roi": (roi_l, roi_r),
+        "disparity2depth": disparity2depth,
+        "map_x": (map_x_l, map_x_r),
+        "map_y": (map_y_l, map_y_r),
+    }
+
+    return pairparams

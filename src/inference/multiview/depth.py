@@ -6,8 +6,10 @@ from images.image import Image
 from images.image_type import ImageType
 
 import time
+import os
 import cv2
 import numpy as np
+import pickle
 from pprint import pprint
 from typing import Sequence, Dict
 
@@ -15,15 +17,22 @@ from typing import Sequence, Dict
 class StereoVision(Inference):
     KEYSTROKES = {
         'c': "Calibrate cameras",
-        ' ': "Start taking snapshots (during calibration)"
+        ' ': "Start taking snapshots (during calibration)",
+        'a': "Switch algorithm",
     }
+    CACHE = "/tmp/CVLAB/"
     STAGES = {"CALIBRATE_WAIT": 1, "CALIBRATING": 2, "RUNNING": 3}
     CHESSBOARD_SIZE = (10, 7)   # number of corners inside the chessboard pattern
     SQUARE_SIZE = 2.47          # real world size of chessboard square size (in cm)
     SUBPIX_PARAMS = (cv2.TERM_CRITERIA_EPS + cv2.TERM_CRITERIA_MAX_ITER, 30, 0.001)
 
     def __init__(self):
+        self.sgbm = True
         self.reset_calibration()
+        loaded = self.load_params()
+        if loaded:
+            self.stage = StereoVision.STAGES["RUNNING"]
+            print("Loading calibration data from cache. Touch 'c' to re-calibrate.")
 
     def reset_calibration(self):
         self.stage = StereoVision.STAGES["CALIBRATE_WAIT"]
@@ -34,6 +43,9 @@ class StereoVision(Inference):
         self.corners = defaultdict(lambda: [])
         # final calibration parameters
         self.camparams = {}
+        self.pairparams = {}
+
+        self.stereo_matcher = None
 
     def process(self, images: Sequence[Image]) -> Dict[str, Image]:
         # Inspired by:
@@ -83,7 +95,6 @@ class StereoVision(Inference):
                     if ret:
                         corners_subpix = cv2.cornerSubPix(
                             img_gray, corners, (11, 11), (-1, -1), StereoVision.SUBPIX_PARAMS)
-                        # TODO calibrate and save
                         all_corners[key] = corners
 
                         img = cv2.drawChessboardCorners(
@@ -100,14 +111,12 @@ class StereoVision(Inference):
                     self.last_snapshot = time.time()
 
                     for key, corners in all_corners.items():
-                        # TODO tmp
-                        self.snapshot_count += 3
-                        for _ in range(4):
-                            self.corners[key].append(corners)
-                            self.snapshots[key].append(img)
+                        self.corners[key].append(corners)
+                        self.snapshots[key].append(img)
 
                     print("[calibration] Snapshot {}! Waiting 3s for the next snapshot..".format(
                         self.snapshot_count))
+                    time.sleep(0.1) # show final pattern
 
         # step 3: calculate calibration parameters
         elif self.snapshot_count >= 8:
@@ -129,10 +138,23 @@ class StereoVision(Inference):
 
                 pprint(camparams)
 
-                self.stage = StereoVision.STAGES["RUNNING"]
-
             # calibrate camera pairs (just 1 pair for now)
-            # TODO
+            for key_l, key_r in [(str(0), str(1))]:
+                camparams_img_l = self.camparams[key_l]
+                camparams_img_r = self.camparams[key_r]
+                img_size = self.snapshots[key_l][0].shape[1::-1]
+
+                pairparams = utils.calibrate_camera_pair(
+                    world_points, self.corners[key_l], self.corners[key_r],
+                    camparams_img_l, camparams_img_r, img_size)
+                self.pairparams[(key_l, key_r)] = pairparams
+
+                pprint(pairparams)
+
+            # save to disk
+            self.save_params()
+
+            self.stage = StereoVision.STAGES["RUNNING"]
 
         return outputs
 
@@ -153,113 +175,78 @@ class StereoVision(Inference):
             outputs[key] = Image(img_undistort, opencv=True)
 
         # return depth image(s)
+        if not self.stereo_matcher:
+            if self.sgbm:
+                self.stereo_matcher = cv2.StereoSGBM_create(
+                    minDisparity=5, numDisparities=64, blockSize=5,
+                    speckleRange=5, speckleWindowSize=15)
+            else:
+                self.stereo_matcher = cv2.StereoBM_create(
+                    numDisparities=64, blockSize=5)
+                self.stereo_matcher.setMinDisparity(5)
+                self.stereo_matcher.setSpeckleRange(9)
+                self.stereo_matcher.setSpeckleWindowSize(21)
+
+
+        for key_l, key_r in [(str(0), str(1))]:
+            img_l = outputs[key_l].get(ImageType.OPENCV)
+            img_r = outputs[key_r].get(ImageType.OPENCV)
+            pairparams = self.pairparams[(key_l, key_r)]
+
+            img_l_rect = cv2.remap(
+                img_l, pairparams["map_x"][0], pairparams["map_y"][0], cv2.INTER_LINEAR)
+            img_r_rect = cv2.remap(
+                img_r, pairparams["map_x"][1], pairparams["map_y"][1], cv2.INTER_LINEAR)
+
+            img_l_gray = cv2.cvtColor(img_l_rect, cv2.COLOR_BGR2GRAY)
+            img_r_gray = cv2.cvtColor(img_r_rect, cv2.COLOR_BGR2GRAY)
+            outputs[key_l + "_rect"] = Image(img_l_rect, opencv=True)
+            outputs[key_r + "_rect"] = Image(img_r_rect, opencv=True)
+
+            img_depth = self.stereo_matcher.compute(img_r_gray, img_l_gray)
+
+            outputs["depth"] = Image(img_depth, opencv=True)
+            outputs["depth_scaled"] = Image(img_depth/2048, opencv=True)
+            img_depth_8bit = np.uint8(img_depth)
+            img_depth_colour = cv2.applyColorMap(img_depth_8bit, cv2.COLORMAP_JET) # _AUTUM/_JET
+            outputs["depth_colour"] = Image(img_depth_colour, opencv=True)
+
+            #from matplotlib import pyplot as plt
+            #plt.imshow(img_disparity, 'gray')
+            #plt.show()
+
         # TODO
 
         return outputs
+
+    def save_params(self):
+        filename_cams = os.path.join(StereoVision.CACHE, "camparams.pkl")
+        filename_pairs = os.path.join(StereoVision.CACHE, "pairparams.pkl")
+        os.makedirs(StereoVision.CACHE, exist_ok=True)
+        with open(filename_cams, "wb") as fp:
+            pickle.dump(self.camparams, fp)
+        with open(filename_pairs, "wb") as fp:
+            pickle.dump(self.pairparams, fp)
+
+    def load_params(self):
+        filename_cams = os.path.join(StereoVision.CACHE, "camparams.pkl")
+        filename_pairs = os.path.join(StereoVision.CACHE, "pairparams.pkl")
+        if not (os.path.exists(filename_cams) and os.path.exists(filename_pairs)):
+            return False
+
+        with open(filename_cams, "rb") as fp:
+            self.camparams = pickle.load(fp)
+        with open(filename_pairs, "rb") as fp:
+            self.pairparams = pickle.load(fp)
+        return True
 
     def handle_keystroke(self, key):
         if key == ' ' and self.stage == StereoVision.STAGES["CALIBRATE_WAIT"]:
             self.stage = StereoVision.STAGES["CALIBRATING"]
         elif key == 'c':
             self.reset_calibration()
+        elif key == 'a':
+            self.sgbm = not self.sgbm
+            self.stereo_matcher = None
+            print("Now using", "SGBM" if self.sgbm else "BM")
 
-
-class Stitching(Inference):
-    """
-    Stitching together camera streams with overlapping areas
-
-    Expecting 2 camera streams (or images) by default; the second view
-    will be the reference point (left unwarped image)
-    """
-
-    def process(self, images: Sequence[Image]) -> Dict[str, Image]:
-        # Based on:
-        # https://www.pyimagesearch.com/2016/01/11/opencv-panorama-stitching/
-        outputs = {}
-        if len(images) != 2:
-            raise Exception("Stitching requires 2 images, not " + str(len(images)))
-
-        img1 = images[0].get(ImageType.OPENCV)
-        img2 = images[1].get(ImageType.OPENCV)
-        stitched, vis = self.stitch(img1, img2)
-
-        if stitched is not None:
-            outputs["stitched"] = Image(stitched, opencv=True)
-        if vis is not None:
-            outputs["vis"] = Image(stitched, opencv=True)
-        return outputs
-
-    def stitch(self, img1, img2, ratio=0.75, thresh=4.0):
-        # get features
-        points1, features1 = self.detect_and_describe(img1)
-        points2, features2 = self.detect_and_describe(img2)
-        if len(points1) == 0 or len(points2) == 0:
-            return None, None
-
-        # match features
-        match = self.match_keypoints(
-            points1, points2, features1, features2, ratio, thresh)
-        if match is None:
-            return None, None
-        matches, H, status = match
-
-        # stitch
-        # TODO: properly find the bounding box and project both inside
-        stitched = cv2.warpPerspective(
-            img1, H, (img1.shape[1] + img2.shape[1], img1.shape[0]))
-        stitched[0:img1.shape[0], 0:img2.shape[1]] = img2
-        annotated = self.draw_matches(
-            img1, img2, points1, points2, matches, status)
-
-        return stitched, annotated
-
-    def detect_and_describe(self, img):
-        descriptor = cv2.xfeatures2d.SIFT_create()
-        points, features = descriptor.detectAndCompute(img, None)
-        points = np.float32([point.pt for point in points])
-        return points, features
-
-    def match_keypoints(self, points1, points2, features1, features2, ratio, thresh):
-        """
-        Match descriptors from two images
-
-        Note: this only accounts for rotations between cameras, not
-        for translations.
-        """
-        matcher = cv2.DescriptorMatcher_create("BruteForce")
-        matches_raw = matcher.knnMatch(features1, features2, 2)
-
-        matches = []
-        for m in matches_raw:
-            if len(m) == 2 and m[0].distance < m[1].distance * ratio:
-                matches.append((m[0].trainIdx, m[0].queryIdx))
-
-        if len(matches) < 4:
-            print("Less than 4 matches - can't stitch!")
-            return None
-
-        match_points1 = np.float32([points1[i] for (_, i) in matches])
-        match_points2 = np.float32([points2[i] for (i, _) in matches])
-        # findHomography estimates the rotation between cameras (not T)
-        H, status = cv2.findHomography(
-            match_points1, match_points2, cv2.RANSAC, thresh)
-
-        return matches, H, status
-
-    def draw_matches(self, img1, img2, points1, points2, matches, status):
-        """Draw adjacently and connect the point matches"""
-        h1, w1 = img1.shape[:2]
-        h2, w2 = img2.shape[:2]
-        vis = np.zeros((max(h1, h2), w1 + w2, 3), dtype="uint8")
-        vis[0:h1, 0:w1] = img1
-        vis[0:h2, w1:] = img2
-
-        for ((trainIdx, queryIdx), s) in zip(matches, status):
-            if s == 1:
-                cv2.line(vis,
-                         (int(points1[queryIdx][0]), int(points1[queryIdx][1])),
-                         (int(points2[trainIdx][0]) + w1, int(points2[trainIdx][1])),
-                         (0, 255, 0),
-                         1)
-
-        return vis
