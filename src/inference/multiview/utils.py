@@ -43,7 +43,7 @@ def calibrate_camera(world_coords, img_coords, img_size, crop_alpha=1):
 
 def calibrate_camera_pair(world_coords, img_coords_l, img_coords_r,
                           camparams_l, camparams_r, img_size):
-    # TODO
+    # Note: images should be of the same size
     _, _, _, _, _, R, T, _, _ = cv2.stereoCalibrate(
         world_coords, img_coords_l, img_coords_r,
         camparams_l["intrinsic"], camparams_l["distortion"],

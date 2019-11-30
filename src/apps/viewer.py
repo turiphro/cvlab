@@ -37,6 +37,11 @@ def main(args):
 
     input_streams = list(map(create_stream, args.inputs))
 
+    print("| Shortcuts available:")
+    print("|  q  quit")
+    for shortcut, descr in inference.KEYSTROKES.items():
+        print("|  {}  {}".format(shortcut, descr))
+
     try:
         while True:
             input_images = list(stream.get(ImageType.OPENCV) for stream in input_streams)

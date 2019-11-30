@@ -15,12 +15,21 @@ from typing import Sequence, Dict
 
 
 class StereoVision(Inference):
+    """
+    Depth maps from camera pairs.
+
+    Be sure to:
+    - list the cameras from left to right (from the cameras' perspective)
+    - when re-running with cached calibration parameters, have the same order as when calibrated
+      (device indices may change after a reboot)
+    """
+
     KEYSTROKES = {
         'c': "Calibrate cameras",
         ' ': "Start taking snapshots (during calibration)",
         'a': "Switch algorithm",
     }
-    CACHE = "/tmp/CVLAB/"
+    CACHE = os.path.expanduser("~/.cvlab/")
     STAGES = {"CALIBRATE_WAIT": 1, "CALIBRATING": 2, "RUNNING": 3}
     CHESSBOARD_SIZE = (10, 7)   # number of corners inside the chessboard pattern
     SQUARE_SIZE = 2.47          # real world size of chessboard square size (in cm)
@@ -51,8 +60,8 @@ class StereoVision(Inference):
         # Inspired by:
         # - https://docs.opencv.org/master/d9/db7/tutorial_py_table_of_contents_calib3d.html
         # - https://albertarmea.com/post/opencv-stereo-camera/
-        if len(images) != 2:
-            raise Exception("Stereo vision requires 2 images, not " + str(len(images)))
+        if len(images) < 2:
+            raise Exception("Stereo vision requires at least 2 images, but " + str(len(images)) + " were given")
 
         if self.stage in [StereoVision.STAGES["CALIBRATE_WAIT"], StereoVision.STAGES["CALIBRATING"]]:
             return self.process_calibration(images)
@@ -64,13 +73,14 @@ class StereoVision(Inference):
 
     def process_calibration(self, images: Sequence[Image]):
         """
-        Calibrate 2+ images: find intrinsic + extrinsic matrices and R/T between the cameras
+        Calibrate 2+ images: find intrinsic + extrinsic matrices and R/T between the camera pairs
         """
         outputs = {str(i): image for (i, image) in enumerate(images)}
 
         # step 1: press space to start
         if self.stage == StereoVision.STAGES["CALIBRATE_WAIT"]:
-            print("[calibration] Grab your chessboard pattern, and press space to start taking snapshots")
+            print("[calibration] Grab your chessboard pattern, and press space to start taking snapshots.")
+            print("              The chessboard needs to be fully visible in *all* images.")
 
         # step 2: take snapshots every 3s
         elif self.snapshot_count < 8:
@@ -83,22 +93,21 @@ class StereoVision(Inference):
             # step 2b: take snapshot (if delay passed and the pattern was found for all images)
             else:
                 all_corners  = {}
+                all_snapshots = {}
                 for i, image in enumerate(images):
                     key = str(i)
                     img = image.get(ImageType.OPENCV)
+                    print(i, img.shape)
                     img_gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
 
-                    #ret, corners = cv2.findChessboardCorners(
-                    #    img_gray, StereoVision.CHESSBOARD_SIZE, None)
                     ret, corners = cv2.findChessboardCornersSB(
                         img_gray, StereoVision.CHESSBOARD_SIZE, None)
                     if ret:
-                        corners_subpix = cv2.cornerSubPix(
-                            img_gray, corners, (11, 11), (-1, -1), StereoVision.SUBPIX_PARAMS)
                         all_corners[key] = corners
+                        all_snapshots[key] = img
 
                         img = cv2.drawChessboardCorners(
-                            img, StereoVision.CHESSBOARD_SIZE, corners_subpix, ret)
+                            img, StereoVision.CHESSBOARD_SIZE, corners, ret)
                         img = cv2.rectangle(img, (1, 1), (img.shape[1]-2, img.shape[0]-2), (0, 255, 0), 2)
                     else:
                         img = cv2.rectangle(img, (1, 1), (img.shape[1]-2, img.shape[0]-2), (0, 0, 255), 2)
@@ -110,13 +119,12 @@ class StereoVision(Inference):
                     self.snapshot_count += 1
                     self.last_snapshot = time.time()
 
-                    for key, corners in all_corners.items():
-                        self.corners[key].append(corners)
-                        self.snapshots[key].append(img)
+                    for key in all_corners:
+                        self.corners[key].append(all_corners[key])
+                        self.snapshots[key].append(all_snapshots[key])
 
                     print("[calibration] Snapshot {}! Waiting 3s for the next snapshot..".format(
                         self.snapshot_count))
-                    time.sleep(0.1) # show final pattern
 
         # step 3: calculate calibration parameters
         elif self.snapshot_count >= 8:
@@ -138,17 +146,23 @@ class StereoVision(Inference):
 
                 pprint(camparams)
 
-            # calibrate camera pairs (just 1 pair for now)
-            for key_l, key_r in [(str(0), str(1))]:
+            # calibrate camera pairs (pairwise, chained in given order)
+            for index_l, index_r in zip(range(0, len(images)-1), range(1, len(images))):
+                key_l, key_r = str(index_l), str(index_r)
+
                 camparams_img_l = self.camparams[key_l]
                 camparams_img_r = self.camparams[key_r]
                 img_size = self.snapshots[key_l][0].shape[1::-1]
+                img_size_r = self.snapshots[key_r][0].shape[1::-1]
+                if img_size != img_size_r:
+                    print("ERROR: images should be of the same size; current sizes:", img_size, img_size_r)
 
                 pairparams = utils.calibrate_camera_pair(
                     world_points, self.corners[key_l], self.corners[key_r],
                     camparams_img_l, camparams_img_r, img_size)
                 self.pairparams[(key_l, key_r)] = pairparams
 
+                print((key_l, key_r))
                 pprint(pairparams)
 
             # save to disk
@@ -160,6 +174,11 @@ class StereoVision(Inference):
 
     def process_stereo(self, images: Sequence[Image]):
         outputs = {}
+
+        if len(self.camparams.keys()) != len(images):
+            print("Error: number of images doesn't match the number of saved parameters.")
+            print("Recalibrate (touch 'c') if old parameters were loaded from the cache.")
+            return {str(i): image for (i, image) in enumerate(images)}
 
         # return undistorted images
         for i, image in enumerate(images):
@@ -187,8 +206,11 @@ class StereoVision(Inference):
                 self.stereo_matcher.setSpeckleRange(9)
                 self.stereo_matcher.setSpeckleWindowSize(21)
 
+        # process camera pairs (pairwise, chained in given order)
+        for index_l, index_r in zip(range(0, len(images)-1), range(1, len(images))):
+            key_l, key_r = str(index_l), str(index_r)
+            pairkey = "{}|{}".format(key_l, key_r)
 
-        for key_l, key_r in [(str(0), str(1))]:
             img_l = outputs[key_l].get(ImageType.OPENCV)
             img_r = outputs[key_r].get(ImageType.OPENCV)
             pairparams = self.pairparams[(key_l, key_r)]
@@ -200,22 +222,16 @@ class StereoVision(Inference):
 
             img_l_gray = cv2.cvtColor(img_l_rect, cv2.COLOR_BGR2GRAY)
             img_r_gray = cv2.cvtColor(img_r_rect, cv2.COLOR_BGR2GRAY)
-            outputs[key_l + "_rect"] = Image(img_l_rect, opencv=True)
-            outputs[key_r + "_rect"] = Image(img_r_rect, opencv=True)
+            outputs[key_l + "_rect_" + pairkey] = Image(img_l_rect, opencv=True)
+            outputs[key_r + "_rect_" + pairkey] = Image(img_r_rect, opencv=True)
 
-            img_depth = self.stereo_matcher.compute(img_r_gray, img_l_gray)
+            img_depth = self.stereo_matcher.compute(img_l_gray, img_r_gray)
 
-            outputs["depth"] = Image(img_depth, opencv=True)
-            outputs["depth_scaled"] = Image(img_depth/2048, opencv=True)
-            img_depth_8bit = np.uint8(img_depth)
-            img_depth_colour = cv2.applyColorMap(img_depth_8bit, cv2.COLORMAP_JET) # _AUTUM/_JET
-            outputs["depth_colour"] = Image(img_depth_colour, opencv=True)
+            img_depth_8bit = (img_depth.astype(np.float64) / img_depth.max() * 255).astype(np.uint8)
+            outputs["depth_" + pairkey] = Image(img_depth_8bit, opencv=True)
 
-            #from matplotlib import pyplot as plt
-            #plt.imshow(img_disparity, 'gray')
-            #plt.show()
-
-        # TODO
+            img_depth_colour = cv2.applyColorMap(img_depth_8bit, cv2.COLORMAP_JET) # _AUTUMN/_JET
+            outputs["depth_" + pairkey + "_colour"] = Image(img_depth_colour, opencv=True)
 
         return outputs
 
