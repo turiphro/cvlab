@@ -1,0 +1,5 @@
+opencv-python == 4.2.*
+pillow == 6.*
+matplotlib == 3.*
+numpy == 1.*
+scipy == 1.*

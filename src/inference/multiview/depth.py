@@ -1,7 +1,6 @@
-from collections import defaultdict
-
+from utils import save_to_cache, load_from_cache
 from ..inference import Inference
-from . import utils as utils
+from . import utils as mvutils
 from images.image import Image
 from images.image_type import ImageType
 
@@ -9,7 +8,7 @@ import time
 import os
 import cv2
 import numpy as np
-import pickle
+from collections import defaultdict
 from pprint import pprint
 from typing import Sequence, Dict
 
@@ -140,7 +139,7 @@ class StereoVision(Inference):
                 img_points = self.corners[key]
                 img_size = self.snapshots[key][0].shape[1::-1]
 
-                camparams = utils.calibrate_camera(
+                camparams = mvutils.calibrate_camera(
                     world_points, img_points, img_size)
                 self.camparams[key] = camparams
 
@@ -157,7 +156,7 @@ class StereoVision(Inference):
                 if img_size != img_size_r:
                     print("ERROR: images should be of the same size; current sizes:", img_size, img_size_r)
 
-                pairparams = utils.calibrate_camera_pair(
+                pairparams = mvutils.calibrate_camera_pair(
                     world_points, self.corners[key_l], self.corners[key_r],
                     camparams_img_l, camparams_img_r, img_size)
                 self.pairparams[(key_l, key_r)] = pairparams
@@ -236,25 +235,19 @@ class StereoVision(Inference):
         return outputs
 
     def save_params(self):
-        filename_cams = os.path.join(StereoVision.CACHE, "camparams.pkl")
-        filename_pairs = os.path.join(StereoVision.CACHE, "pairparams.pkl")
-        os.makedirs(StereoVision.CACHE, exist_ok=True)
-        with open(filename_cams, "wb") as fp:
-            pickle.dump(self.camparams, fp)
-        with open(filename_pairs, "wb") as fp:
-            pickle.dump(self.pairparams, fp)
+        save_to_cache(type(self).__name__, "camparams", self.camparams)
+        save_to_cache(type(self).__name__, "pairparams", self.pairparams)
 
     def load_params(self):
-        filename_cams = os.path.join(StereoVision.CACHE, "camparams.pkl")
-        filename_pairs = os.path.join(StereoVision.CACHE, "pairparams.pkl")
-        if not (os.path.exists(filename_cams) and os.path.exists(filename_pairs)):
-            return False
+        camparams = load_from_cache(type(self).__name__, "camparams")
+        pairparams = load_from_cache(type(self).__name__, "pairparams")
 
-        with open(filename_cams, "rb") as fp:
-            self.camparams = pickle.load(fp)
-        with open(filename_pairs, "rb") as fp:
-            self.pairparams = pickle.load(fp)
-        return True
+        if camparams is None or pairparams is None:
+            return False
+        else:
+            self.camparams = camparams
+            self.pairparams = pairparams
+            return True
 
     def handle_keystroke(self, key):
         if key == ' ' and self.stage == StereoVision.STAGES["CALIBRATE_WAIT"]:

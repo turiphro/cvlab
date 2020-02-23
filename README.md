@@ -12,19 +12,26 @@ prototyping, please do not judge code quality ;)
 Installation (Ubuntu)
 =====================
 
+Last tested on Ubuntu 19.10.
+
 ```
-sudo apt-get install python-pip python3-pip python3-numpy python3-dev potrace libgtk2.0-dev libeigen3-dev libavcodec-dev libdc1394-22-dev libjpeg-dev libpng-dev libtiff-dev libjasper-dev libopenni-dev imagemagick libffi-dev
-sudo pip3 install pillow numpy scipy matplotlib cairocffi
+sudo apt-get install python-pip python3-pip python3-numpy python3-dev potrace libgtk2.0-dev libeigen3-dev libavcodec-dev libdc1394-22-dev libjpeg-dev libpng-dev libtiff-dev libopenni-dev imagemagick libffi-dev
+sudo pip3 install -r requirements.txt
 ```
 
-## OpenCV
-Compile OpenCV 4.0+, including Python (3) bindings:
+
+Or install manually:
+
+## OpenCV (manual installation)
+Compile OpenCV 4.0+, including Python (3) bindings (6min on my core i7)
 https://www.pyimagesearch.com/2018/08/15/how-to-install-opencv-4-on-ubuntu/
 
     export OPENCV=4.1.2  # 2019-10-10
     wget -O opencv.zip https://github.com/opencv/opencv/archive/$OPENCV.zip
     wget -O opencv_contrib.zip https://github.com/opencv/opencv_contrib/archive/$OPENCV.zip
-    # unzip & rename without version
+    unzip opencv.zip && unzip opencv_contrib.zip
+    mv opencv-$OPENCV opencv && mv opencv_contrib-$OPENCV opencv_contrib
+
     mkdir -p opencv/build/ && cd opencv/build
     cmake -D CMAKE_BUILD_TYPE=RELEASE \
 	-D CMAKE_INSTALL_PREFIX=/usr/local \
@@ -35,7 +42,7 @@ https://www.pyimagesearch.com/2018/08/15/how-to-install-opencv-4-on-ubuntu/
 	-D PYTHON_EXECUTABLE=$(which python3) \
 	-D PYTHON2_EXECUTABLE=$(which python2) \
 	-D BUILD_EXAMPLES=ON ..
-    make -j2
+    make -j5
     sudo make install
 
 
