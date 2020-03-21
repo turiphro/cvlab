@@ -77,7 +77,7 @@ class OpticalFlow(Inference):
 
         return outputs
 
-    def handle_keystroke(self, key):
+    def handle_command(self, key):
         if key == 'r':
             print("Resetting tracking")
             self.reset_tracking()

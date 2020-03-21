@@ -56,7 +56,7 @@ def main(args):
             if keystroke == 'q':
                 break
             elif keystroke in inference.KEYSTROKES:
-                inference.handle_keystroke(keystroke)
+                inference.handle_command(keystroke)
 
     finally:
         for stream in input_streams:

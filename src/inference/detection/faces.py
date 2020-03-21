@@ -1,6 +1,6 @@
 from images.image import Image
 from images.image_type import ImageType
-from .inference import Inference
+from ..inference import Inference
 
 from typing import Sequence, Dict
 import cv2

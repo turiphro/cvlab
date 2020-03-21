@@ -249,7 +249,7 @@ class StereoVision(Inference):
             self.pairparams = pairparams
             return True
 
-    def handle_keystroke(self, key):
+    def handle_command(self, key):
         if key == ' ' and self.stage == StereoVision.STAGES["CALIBRATE_WAIT"]:
             self.stage = StereoVision.STAGES["CALIBRATING"]
         elif key == 'c':
