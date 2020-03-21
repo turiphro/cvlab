@@ -2,6 +2,7 @@ from images.image import Image
 
 
 class Stream:
+    """Interface for streams (sources) of Images"""
     identifier = None
 
     def __init__(self, identifier):
