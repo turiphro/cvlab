@@ -16,7 +16,10 @@ Last tested on Ubuntu 19.10.
 
 ```
 sudo apt-get install python-pip python3-pip python3-numpy python3-dev potrace libgtk2.0-dev libeigen3-dev libavcodec-dev libdc1394-22-dev libjpeg-dev libpng-dev libtiff-dev libopenni-dev imagemagick libffi-dev
-sudo pip3 install -r requirements.txt
+
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
 ```
 
 

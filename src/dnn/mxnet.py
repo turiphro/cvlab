@@ -12,13 +12,21 @@ FRIENDLY_NAMES = {
     # See gluoncv.model_zoo.model_zoo.py:_models for the full pretrained gluoncv list
 
     # CLASSIFICATION
+    # https://gluon-cv.mxnet.io/model_zoo/classification.html
     "resnet": ("resnet152_v2", ModelType.CLASSIFICATION),
     "resnext": ("se_resnext50_32x4d", ModelType.CLASSIFICATION),
     "mobilenet": ("mobilenet0.75", ModelType.CLASSIFICATION),
 
     # DETECTION
-    "yolo": ("yolo3_mobilenet1.0_coco", ModelType.DETECTION),
+    # https://gluon-cv.mxnet.io/model_zoo/detection.html
+    "yolo": ("yolo3_darknet53_coco", ModelType.DETECTION),
     "ssd": ("ssd_512_mobilenet1.0_coco", ModelType.DETECTION),
+
+    # SEGMENTATION
+    # https://gluon-cv.mxnet.io/model_zoo/segmentation.html
+    "fcn": ("fcn_resnet101_voc", ModelType.SEGMENTATION),
+    "deeplab": ("psp_resnet101_coco", ModelType.SEGMENTATION),
+    #
 }
 
 
@@ -46,7 +54,11 @@ class MxnetLoader(ModelLoader):
         ts_img = mx.nd.image.normalize(ts_img, mean=mean, std=std).expand_dims(0)
 
         # run model
-        outputs = self.model(ts_img)
+        if hasattr(self.model, "predict"):
+            # Some models have this method (i.e., segmentation models), some don't
+            outputs = self.model.predict(ts_img)
+        else:
+            outputs = self.model(ts_img)
 
         if self.model_type is ModelType.CLASSIFICATION:
             return {
@@ -58,12 +70,16 @@ class MxnetLoader(ModelLoader):
                 "scores": outputs[1],
                 "bounding_boxes": outputs[2]
             }
+        elif self.model_type is ModelType.SEGMENTATION:
+            return {
+                "mask": outputs
+            }
         else:
             return {
                 "outputs": outputs
             }
 
-    def visualise(self, image: Image, metadata: Dict[str, Any]):
+    def visualise(self, image: Image, metadata: Dict[str, Any], blend=0.5, show_labels=True):
         np_img = image.asnumpy()
         mx_img = mx.nd.array(np_img).astype('uint8')
 
@@ -85,8 +101,27 @@ class MxnetLoader(ModelLoader):
             top_ids = mx.nd.topk(class_ids, k=3)[0].astype("int").asnumpy()
             captions = ["{}: {:.3}".format(self.model.classes[id], scores[id])
                         for id in top_ids]
-            img = draw_captions(np_img, captions)
+            img = draw_captions(np_img, captions) if show_labels else np_img
 
+        elif "mask" in metadata:
+            # segmentation results
+            mask = metadata["mask"]
+            img_resized = gcv.data.transforms.image.imresize(mx_img, mask.shape[3], mask.shape[2]).asnumpy()
+
+            predict = mx.nd.argmax(mask, 1)[0].astype("int").asnumpy()
+            mask_colour = gcv.utils.viz.get_color_pallete(predict, "pascal_voc")
+            mask_colour = np.array(mask_colour.convert("RGB")) # PIL with palette -> numpy RGB
+            img = cv2.addWeighted(img_resized, 1 - blend, mask_colour, blend, 0)
+
+            if show_labels:
+                classfreqs = list(zip(*np.unique(predict, return_counts=True)))
+                classfreqs = sorted(classfreqs, key=lambda cf: cf[1], reverse=True)
+                # NOTE: a bug in gluoncv currently returns a property of a class, instead of an instance of the class,
+                #       for all Segmentation models; we need to obtain the property value (passing a bogus self)
+                model_classes = self.model.classes.fget(0)
+                captions = ["{} ({}px)".format(model_classes[id], freq)
+                            for (id, freq) in classfreqs[1:5]]
+                img = draw_captions(img, captions)
 
         else:
             raise ValueError(

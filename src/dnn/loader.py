@@ -45,4 +45,5 @@ class ModelLoader:
 class ModelType(Enum):
     CLASSIFICATION  = 0
     DETECTION       = 1
+    SEGMENTATION    = 2
 
