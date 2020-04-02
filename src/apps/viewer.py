@@ -11,9 +11,9 @@ WINDOW_NAME = 'cvlab::viewer'
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--inputs', '--input', '-i', nargs='+',
+    parser.add_argument('--inputs', '--input', '-i', nargs='+', default=["0"],
                         help='Input stream or streams (camera id:int, image path:str)')
-    parser.add_argument('--inference', '-f', default='filters.Nothing',
+    parser.add_argument('--inference', '-f', type=load_class, default=load_class("filters.Nothing"),
                         help="Inference class to use")
 
     args = parser.parse_args()
@@ -21,9 +21,7 @@ def parse_args():
 
 
 def load_class(classname, prefix="inference"):
-    _mod = args.inference[:classname.rfind('.')]
-    _class = args.inference[classname.rfind('.')+1:]
-    print("Inference:", _mod, _class)
+    _mod, _class = classname.rsplit('.', 1)
     inference_mod = importlib.import_module("{}.{}".format(prefix, _mod))
     inference_class = getattr(inference_mod, _class)
     return inference_class
@@ -32,11 +30,11 @@ def load_class(classname, prefix="inference"):
 def main(args):
     print(args)
 
-    inference_class = load_class(args.inference)
-    inference = inference_class()
+    inference = args.inference()
 
     input_streams = list(map(create_stream, args.inputs))
 
+    print("Inference:", args.inference)
     print("| Shortcuts available:")
     print("|  q  quit")
     for shortcut, descr in inference.KEYSTROKES.items():
