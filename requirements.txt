@@ -1,7 +1,7 @@
 gluoncv == 0.6.*
 pillow == 6.*
 matplotlib == 3.*
-mxnet-mkl == 1.6.*
+mxnet-cu101mkl == 1.6.*  # no GPU: mxnet-mkl; GPU: mxnet-cu101mkl
 numpy == 1.*
 opencv-python == 4.2.*
 scipy == 1.*

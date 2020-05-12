@@ -31,13 +31,18 @@ FRIENDLY_NAMES = {
 
 
 class MxnetLoader(ModelLoader):
-    def __init__(self):
+    def __init__(self, ctx=None):
         self.model = None
         self.model_type = None
+        default_ctx = mx.context.gpu() if mx.context.num_gpus() else mx.context.cpu()
+        self.ctx = ctx or default_ctx
 
-    def load(self, model_name: str, model_type: ModelType = None) -> None:
+    def load(self, model_name: str, model_type: ModelType = None, debug : bool = True) -> None:
         _model_name, _model_type = FRIENDLY_NAMES.get(model_name) or (model_name, model_type)
-        self.model = gcv.model_zoo.get_model(_model_name, pretrained=True)
+        if debug:
+            print("[mxnet] loading {} model {} on {}".format(_model_type.name, _model_name, self.ctx))
+
+        self.model = gcv.model_zoo.get_model(_model_name, pretrained=True, ctx=self.ctx)
         self.model.hybridize()
         self.model_type = _model_type
 
@@ -50,7 +55,7 @@ class MxnetLoader(ModelLoader):
         np_img = image.asnumpy()
         mx_img = mx.nd.array(np_img).astype('uint8')
         mx_img = gcv.data.transforms.image.resize_short_within(mx_img, short=short, max_size=max_size, mult_base=32)
-        ts_img = mx.nd.image.to_tensor(mx_img)
+        ts_img = mx.nd.image.to_tensor(mx_img).copyto(self.ctx)
         ts_img = mx.nd.image.normalize(ts_img, mean=mean, std=std).expand_dims(0)
 
         # run model

@@ -13,7 +13,7 @@ class ModelLoader:
     values might differ for different frameworks and models, and need
     to be handled inside the consumer classes.
     """
-    def load(self, model_name) -> None:
+    def load(self, model_name: str) -> None:
         """
         Load a neural network model, given a symbolic name
 
