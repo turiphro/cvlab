@@ -7,10 +7,13 @@ from typing import Sequence, Dict
 
 class Objects(Inference):
     """Object detection, using neural nets"""
+    ARGUMENTS = {
+        'model': str
+    }
 
-    def __init__(self, model_name="yolo"):
+    def __init__(self, model=None):
         self.LOADER = MxnetLoader()
-        self.LOADER.load(model_name, ModelType.DETECTION)
+        self.LOADER.load(model or "yolo", ModelType.DETECTION)
 
     def process(self, images: Sequence[Image]) -> Dict[str, Image]:
         outputs = {}

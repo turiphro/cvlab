@@ -1,11 +1,13 @@
 import argparse
 import cv2
 import importlib
+from typing import Sequence
 
 from streams import create_stream
 from images.image_type import ImageType
 
 
+argparse.ArgumentDefaultsHelpFormatter
 WINDOW_NAME = 'cvlab::viewer'
 
 
@@ -16,21 +18,39 @@ def parse_args():
     parser.add_argument('--inference', '-f', type=load_class, default=load_class("filters.Nothing"),
                         help="Inference class to use")
 
-    args = parser.parse_args()
+    # Remaining arguments are collected for parse_additional_args
+    args, unknown_args = parser.parse_known_args()
+    return args, unknown_args
+
+
+def parse_additional_args(input: Sequence[str], arg_defs: dict):
+    """Parse class-specific arguments"""
+    parser = argparse.ArgumentParser()
+
+    shorthands = {'i', 'f'}
+    for _key, _type in arg_defs.items():
+        args = ['--{}'.format(_key)]
+        if _key[0] not in shorthands:
+            args.append('-{}'.format(_key[0]))
+            shorthands.add(_key[0])
+        parser.add_argument(*args, type=_type)
+
+    args = parser.parse_args(input)
     return args
 
 
-def load_class(classname, prefix="inference"):
+def load_class(classname: str, prefix="inference"):
     _mod, _class = classname.rsplit('.', 1)
     inference_mod = importlib.import_module("{}.{}".format(prefix, _mod))
     inference_class = getattr(inference_mod, _class)
     return inference_class
 
 
-def main(args):
+def main(args: argparse.Namespace, class_args: argparse.Namespace):
     print(args)
+    print(class_args)
 
-    inference = args.inference()
+    inference = args.inference(**vars(class_args))
 
     input_streams = list(map(create_stream, args.inputs))
 
@@ -62,5 +82,6 @@ def main(args):
 
 
 if __name__ == '__main__':
-    args = parse_args()
-    main(args)
+    args, unknown_args = parse_args()
+    class_args = parse_additional_args(unknown_args, args.inference.ARGUMENTS)
+    main(args, class_args)

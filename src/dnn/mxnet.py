@@ -16,16 +16,19 @@ FRIENDLY_NAMES = {
     "resnet": ("resnet152_v2", ModelType.CLASSIFICATION),
     "resnext": ("se_resnext50_32x4d", ModelType.CLASSIFICATION),
     "mobilenet": ("mobilenet0.75", ModelType.CLASSIFICATION),
+    #"densenet": ("densenet201", ModelType.CLASSIFICATION),
 
     # DETECTION
     # https://gluon-cv.mxnet.io/model_zoo/detection.html
-    "yolo": ("yolo3_darknet53_coco", ModelType.DETECTION),
+    "yolo": ("yolo3_mobilenet1.0_coco", ModelType.DETECTION),
     "ssd": ("ssd_512_mobilenet1.0_coco", ModelType.DETECTION),
 
     # SEGMENTATION
     # https://gluon-cv.mxnet.io/model_zoo/segmentation.html
     "fcn": ("fcn_resnet101_voc", ModelType.SEGMENTATION),
-    "deeplab": ("psp_resnet101_coco", ModelType.SEGMENTATION),
+    "deeplab": ("deeplab_resnet101_coco", ModelType.SEGMENTATION),
+    "psp": ("psp_resnet101_coco", ModelType.SEGMENTATION),
+
     #
 }
 

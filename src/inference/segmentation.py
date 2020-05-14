@@ -12,12 +12,15 @@ class Segmentation(Inference):
         '+': "Increase segmentation mask visibility",
         'l': "Show/hide class labels"
     }
+    ARGUMENTS = {
+        'model': str
+    }
 
-    def __init__(self, model_name="fcn"):
+    def __init__(self, model=None):
         self.blend = 0.75
         self.show_labels = True
         self.LOADER = MxnetLoader()
-        self.LOADER.load(model_name, ModelType.SEGMENTATION)
+        self.LOADER.load(model or "deeplab", ModelType.SEGMENTATION)
 
     def process(self, images: Sequence[Image]) -> Dict[str, Image]:
         outputs = {}

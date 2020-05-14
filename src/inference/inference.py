@@ -5,7 +5,8 @@ from typing import Sequence, Dict
 
 class Inference:
     """Interface for Inference classes"""
-    KEYSTROKES = {}  # Set to {character: description} to be handled by handle_keystroke
+    KEYSTROKES = {}  # Dict of {character: description} to be handled by handle_keystroke
+    ARGUMENTS = {}   # Dict of {key: type} to be passed as kwargs to __init__ (may have None value)
 
     def process(self, images: Sequence[Image]) -> Dict[str, Image]:
         """
