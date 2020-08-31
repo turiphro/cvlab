@@ -2,6 +2,8 @@ data/
 img/
 src_TODO/
 playground/
+.*.swp
 
 .idea
 venv
+__pycache__/

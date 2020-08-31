@@ -3,15 +3,16 @@ from images.image_type import ImageType
 from ..inference import Inference
 
 from typing import Sequence, Dict
+import os
 import cv2
 
-CASCADE_FOLDER = "/usr/local/src/opencv/opencv/data/haarcascades"
+CASCADE_FOLDER = os.path.join(os.path.dirname(os.path.abspath(cv2.__file__)), "data")
 
 
 class Faces(Inference):
     """Classic face detection, using Haar Cascades"""
 
-    FACE_CASCADE = cv2.CascadeClassifier(CASCADE_FOLDER + '/haarcascade_frontalface_default.xml')
+    FACE_CASCADE = cv2.CascadeClassifier(CASCADE_FOLDER + os.sep + 'haarcascade_frontalface_default.xml')
     BOX_COLOUR = (255, 0, 0)
 
     def process(self, images: Sequence[Image]) -> Dict[str, Image]:

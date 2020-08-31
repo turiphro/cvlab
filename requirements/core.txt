@@ -1,0 +1,6 @@
+gluoncv == 0.6.*
+pillow == 7.*
+matplotlib == 3.*
+numpy == 1.*
+opencv-contrib-python == 4.1.0.25  # latest working prebuilt on rpi (via piwheels) is 4.1.0.25 (@ 2020-08-31)
+scipy == 1.*

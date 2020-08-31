@@ -15,17 +15,23 @@ Installation (Ubuntu)
 Last tested on Ubuntu 19.10.
 
 ```
-sudo apt-get install python-pip python3-pip python3-numpy python3-dev potrace libgtk2.0-dev libeigen3-dev libavcodec-dev libdc1394-22-dev libjpeg-dev libpng-dev libtiff-dev libopenni-dev imagemagick libffi-dev
+sudo apt-get install python-pip python3-pip python3-numpy python3-dev potrace libgtk2.0-dev libeigen3-dev libavcodec-dev libdc1394-22-dev libjpeg-dev libpng-dev libtiff-dev libopenni-dev imagemagick libffi-dev libhdf5-dev libhdf5-serial-dev libqtgui4 libqtwebkit4 libqt4-test python3-pyqt5 libatlas-base-dev libjasper-dev
 
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
+pip install -r requirements/desktop.txt  # or requirements/pi.txt on raspberry pi
 ```
 
 
-Or install manually:
+### Raspberry Pi
+Additionally, on raspberry pis do:
 
-## OpenCV (manual installation)
+- `sudo raspi-config` and enable the camera module
+
+
+### Manual compilation OpenCV
+Alternatively, you may manually compile OpenCV.
+
 Compile OpenCV 4.0+, including Python (3) bindings (6min on my core i7)
 https://www.pyimagesearch.com/2018/08/15/how-to-install-opencv-4-on-ubuntu/
 
