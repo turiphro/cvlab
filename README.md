@@ -26,7 +26,12 @@ pip install -r requirements/desktop.txt  # or requirements/pi.txt on raspberry p
 ### Raspberry Pi
 Additionally, on raspberry pis do:
 
-- `sudo raspi-config` and enable the camera module
+- `sudo raspi-config` and enable the camera module (and ssh if desired)
+
+- install the LCD screen; depending on your screen, use:
+  - RPi Display (aliexpress; here 3.5 inch MPI3501):
+    `git clone https://github.com/goodtft/LCD-show.git && cd LCD-show && chmod +x LCD* && sudo ./LCD35-show 180`;
+    change rotation (180) later with `sudo ./rotate.sh [rotation]`
 
 
 ### Manual compilation OpenCV
