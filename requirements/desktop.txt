@@ -3,3 +3,4 @@
 -r core.txt
 
 mxnet-cu101mkl == 1.6.*  # no GPU: mxnet-mkl; GPU: mxnet-cu101mkl
+tensorflow == 2.1.0

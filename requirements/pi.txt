@@ -4,3 +4,6 @@
 
 mxnet == 1.6.*   # no GPU: mxnet-mkl; GPU: mxnet-cu101mkl
 picamera
+# TensorFlow 2.0+ is currently not downloading from piwheels
+https://github.com/Qengineering/Tensorflow-Raspberry-Pi/raw/master/tensorflow-2.1.0-cp37-cp37m-linux_armv7l.whl
+
