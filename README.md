@@ -12,10 +12,10 @@ prototyping, please do not judge code quality ;)
 Installation (Ubuntu)
 =====================
 
-Last tested on Ubuntu 19.10.
+Last tested on Ubuntu 20.04.
 
 ```
-sudo apt-get install python-pip python3-pip python3-numpy python3-dev potrace libgtk2.0-dev libeigen3-dev libavcodec-dev libdc1394-22-dev libjpeg-dev libpng-dev libtiff-dev libopenni-dev imagemagick libffi-dev libhdf5-dev libhdf5-serial-dev libqtgui4 libqtwebkit4 libqt4-test python3-pyqt5 libatlas-base-dev libjasper-dev
+sudo apt-get install python3-pip python3-numpy python3-dev potrace libgtk2.0-dev libeigen3-dev libavcodec-dev libdc1394-22-dev libjpeg-dev libpng-dev libtiff-dev libopenni-dev imagemagick libffi-dev libhdf5-dev libhdf5-serial-dev libatlas-base-dev
 
 python3 -m venv venv
 source venv/bin/activate
