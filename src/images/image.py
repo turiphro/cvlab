@@ -1,7 +1,4 @@
-from enum import Enum
-import numpy as np
-import PIL
-import cv2
+import io
 
 from . import convert
 from .image_type import ImageType
@@ -64,4 +61,11 @@ class Image:
 
     def aspil(self):
         return self.get(ImageType.PILLOW)
+
+    def asbytes(self, format: str = "JPEG"):
+        """Raw image bytes"""
+        image = self.get(ImageType.PILLOW)
+        image_bytes = io.BytesIO()
+        image.save(image_bytes, format=format)
+        return image_bytes.getvalue()
 

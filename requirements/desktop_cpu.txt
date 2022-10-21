@@ -1,0 +1,6 @@
+# Requirements for Desktops (without GPU)
+
+-r core.txt
+
+mxnet-mkl == 1.5.*  # no GPU: mxnet-mkl; GPU: mxnet-cu101mkl
+# tensorflow == 2.2.0

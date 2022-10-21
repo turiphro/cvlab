@@ -1,4 +1,5 @@
 from dnn.mxnet import MxnetLoader, ModelType
+from cloud.aws import AWSInference, InferenceType
 from images.image import Image
 from ..inference import Inference
 
@@ -25,3 +26,41 @@ class Objects(Inference):
                 outputs[str(i)] = visualised
 
         return outputs
+
+
+class CloudObjects(Inference):
+    """Object detection, using a Cloud provider"""
+    ARGUMENTS = {
+        'cloud': str
+    }
+    KEYSTROKES = {}
+
+
+    def __init__(self, cloud=None):
+        cloud = cloud or "aws"
+
+        if cloud == "aws":
+            self.PROVIDER = AWSInference()
+        else:
+            raise ValueError(f"Unknown cloud provider: {cloud}")
+
+        self.PROVIDER.load(InferenceType.DETECTION)
+        if self.PROVIDER.KEYSTROKES:
+            self.KEYSTROKES.update(self.PROVIDER.KEYSTROKES)
+
+    def process(self, images: Sequence[Image]) -> Dict[str, Image]:
+        outputs = {}
+        for (i, image) in enumerate(images):
+            if image is not None:
+                metadata = self.PROVIDER.process(image)
+                visualised = self.PROVIDER.visualise(image, metadata)
+
+                outputs[str(i)] = visualised
+
+        return outputs
+
+    def handle_command(self, key):
+        self.PROVIDER.handle_command(key)
+
+
+# TODO add class for AWS[Rekognition]Objects

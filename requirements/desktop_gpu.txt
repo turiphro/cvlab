@@ -1,4 +1,4 @@
-# Requirements for Raspberry Pis
+# Requirements for Desktops (with GPU and cuda drivers)
 
 -r core.txt
 

@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 from PIL.Image import Image as PILImage
+from PIL.Image import fromarray as PIL_fromarray
 
 from .image_type import ImageType
 
@@ -27,6 +28,7 @@ CONVERSIONS = {
     (ImageType.PILLOW, ImageType.NUMPY): np.array,
     (ImageType.NUMPY, ImageType.OPENCV):
         (lambda img: cv2.cvtColor(img, cv2.COLOR_RGB2BGR)),
+    (ImageType.NUMPY, ImageType.PILLOW): PIL_fromarray,
     (ImageType.OPENCV, ImageType.NUMPY):
         (lambda img: cv2.cvtColor(img, cv2.COLOR_BGR2RGB)),
 }
