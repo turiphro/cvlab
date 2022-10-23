@@ -10,13 +10,22 @@ from .provider import CloudProvider, InferenceType
 
 
 class AWSInference(CloudProvider):
+    """
+    AWS Rekognition on image frames
+    
+    NOTE: this class runs Rekognition on a frame-by-frame basis.
+    AWS also supports running on video streams for some of the APIs,
+    requiring a Kinesis Video Stream integration (not implemented):
+    - https://docs.aws.amazon.com/rekognition/latest/dg/streaming-video.html
+    - https://docs.aws.amazon.com/kinesisvideostreams/latest/dg/what-is-kinesis-video.html
+    """
     KEYSTROKES = {'r': "Reset tracking"}
 
     def __init__(self):
         self.COLOURS = {}
 
     def load(self, inference_type: InferenceType, debug: int = True) -> None:
-        config = Config(connect_timeout=1, read_timeout=2)
+        config = Config(connect_timeout=1, read_timeout=3)
         self.rekognition_client = boto3.client("rekognition", config=config)
         self.inference_type = inference_type
         self.debug = debug
@@ -48,6 +57,16 @@ class AWSInference(CloudProvider):
             )
             return {
                 "faces": rekognition_response["FaceDetails"],
+                "latency": time.perf_counter() - _start,
+            }
+
+        elif self.inference_type == InferenceType.TEXT_EXTRACT:
+            rekognition_response = self.rekognition_client.detect_text(
+                Image=image2rekimage(image),
+                Filters={"WordFilter": {"MinConfidence": 50}},
+            )
+            return {
+                "text": rekognition_response["TextDetections"],
                 "latency": time.perf_counter() - _start,
             }
 
@@ -90,6 +109,21 @@ class AWSInference(CloudProvider):
                     draw_boundingbox(img, *face["boundingbox"], colour=_colour, label=_key)
                     for label, (x, y) in face["landmarks"].items():
                         draw_point(img, x, y, label=None, colour=_colour)
+
+            except ValueError as ex:
+                print(f"!! Error parsing detections, skipping: {ex}")
+
+        if "text" in metadata:
+            try:
+                parsed = parse_rek_text(metadata["text"], img.size)
+
+                for i, text in enumerate(parsed):
+                    _colour = (
+                        int(255 * (100 - text["confidence"]) / 100),
+                        int(255 * text["confidence"] / 100),
+                        0
+                    )
+                    draw_boundingbox(img, *text["boundingbox"], colour=_colour, label=text["label"])
 
             except ValueError as ex:
                 print(f"!! Error parsing detections, skipping: {ex}")
@@ -220,4 +254,56 @@ def parse_rek_faces(raw: dict, img_size: Tuple[int, int]) -> dict:
             "boundingbox": boundingbox,
             "landmarks": landmarks,
         })
+    return output
+
+
+def parse_rek_text(raw: dict, img_size: Tuple[int, int]) -> dict:
+    """
+    Example input:
+        [
+            {
+                "DetectedText": "some word",
+                "Confidence": 8.662981986999512,
+                "Type": "WORD",  OR "LINE"
+                "Id": 0,
+                "ParentId": 0,
+                "Geometry": {
+                    "BoundingBox": {
+                        "Width": 0.30775646371976645,
+                        "Height": 0.044534412955465584,
+                        "Left": 0.36363636363636365,
+                        "Top": 0.05668016194331984
+                    },
+                    "Polygon": [...]
+                },
+            }
+        ]
+
+    Example output: (only includes WORD entries)
+        [
+            {'label': "some word",
+             'confidence': 98.9,
+             'boundingbox': (32, 24, 61, 74),  // (x, y, w, h)
+            },
+        ]
+    """
+    # NOTE: will filter out LINEs; ignoring the polygon for now
+    MANDATORY_KEYS = ["Confidence", "Geometry", "DetectedText"]
+
+    output = []
+    for item in raw:
+        if any(label not in item for label in MANDATORY_KEYS):
+            raise ValueError(f"One or more keys from {MANDATORY_KEYS} missing in {item}")
+        boundingbox = (
+            int(item["Geometry"]["BoundingBox"]["Left"] * img_size[0]),
+            int(item["Geometry"]["BoundingBox"]["Top"] * img_size[1]),
+            int(item["Geometry"]["BoundingBox"]["Width"] * img_size[0]),
+            int(item["Geometry"]["BoundingBox"]["Height"] * img_size[1])
+        )
+        if item["Type"] == "WORD":
+            output.append({
+                "confidence": item["Confidence"],
+                "label": item["DetectedText"],
+                "boundingbox": boundingbox,
+            })
     return output
