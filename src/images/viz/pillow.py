@@ -19,3 +19,13 @@ def draw_text(img: PILImage, text: str, x: int, y:int, colour=(255, 0, 0)):
     _, _, box_w, box_h = canvas.textbbox((0, 0), text, font=_font)
     canvas.text(((x-box_w/2), (y-box_h)), text, colour, font=_font)
     return img
+
+
+def draw_point(img: PILImage, x: int, y: int, label: str = None,
+                     colour=(255, 0, 0), width=2):
+    canvas = ImageDraw.Draw(img, "RGBA")
+    canvas.ellipse([x-width/2, y-width/2, x+width/2, y+width/2], fill=colour)
+
+    if label:
+        draw_text(img, label, x, y + 20, colour=colour)
+    return img

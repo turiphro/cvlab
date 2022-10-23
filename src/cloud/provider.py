@@ -7,7 +7,8 @@ from images.image import Image
 class InferenceType(Enum):
     CLASSIFICATION  = 0
     DETECTION       = 1
-    TEXT_EXTRACT    = 2
+    FACE_DETECTION  = 2
+    TEXT_EXTRACT    = 3
 
 
 class CloudProvider:

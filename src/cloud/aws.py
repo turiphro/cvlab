@@ -5,7 +5,7 @@ from typing import Dict, Any, Tuple
 from random import randint
 
 from images.image import Image
-from images.viz.pillow import draw_boundingbox, draw_text
+from images.viz.pillow import draw_boundingbox, draw_point
 from .provider import CloudProvider, InferenceType
 
 
@@ -29,8 +29,9 @@ class AWSInference(CloudProvider):
         input("Hit ENTER to confirm >>> ")
 
     def process(self, image: Image) -> Dict[str, Any]:
+        _start = time.perf_counter()
+
         if self.inference_type == InferenceType.DETECTION:
-            _start = time.perf_counter()
             rekognition_response = self.rekognition_client.detect_labels(
                 Image=image2rekimage(image),
                 MinConfidence=50,
@@ -40,8 +41,20 @@ class AWSInference(CloudProvider):
                 "latency": time.perf_counter() - _start,
             }
 
+        elif self.inference_type == InferenceType.FACE_DETECTION:
+            rekognition_response = self.rekognition_client.detect_faces(
+                Image=image2rekimage(image),
+                Attributes=["ALL"],
+            )
+            return {
+                "faces": rekognition_response["FaceDetails"],
+                "latency": time.perf_counter() - _start,
+            }
+
         else:
-            raise NotImplementedError(f"Unknown inference type: {self.inference_type}")
+            raise NotImplementedError(
+                f"Unknown inference type inside {self.__class__.__name__}: {self.inference_type}"
+            )
 
     def visualise(self, image: Image, metadata: Dict[str, Any]) -> Image:
         img = image.aspil()
@@ -61,7 +74,25 @@ class AWSInference(CloudProvider):
                     for item in sorted(parsed, key=lambda x: x["label"]):
                         print(f' {item["label"]}: {item["confidence"]}')
             except ValueError as ex:
-                print("!! Error parsing detections, skipping: ex")
+                print(f"!! Error parsing detections, skipping: {ex}")
+
+        if "faces" in metadata:
+            try:
+                parsed = parse_rek_faces(metadata["faces"], img.size)
+
+                for i, face in enumerate(parsed):
+                    _key = f"face{i}"
+                    if _key not in self.COLOURS:
+                        # assigning colours assuming the detection order stays (relatively) stable
+                        self.COLOURS[_key] = (randint(0, 255), randint(0, 255), randint(0, 255))
+
+                    _colour = self.COLOURS[_key]
+                    draw_boundingbox(img, *face["boundingbox"], colour=_colour, label=_key)
+                    for label, (x, y) in face["landmarks"].items():
+                        draw_point(img, x, y, label=None, colour=_colour)
+
+            except ValueError as ex:
+                print(f"!! Error parsing detections, skipping: {ex}")
 
         if self.debug and "latency" in metadata:
             print(f'=> latency: {metadata["latency"]}')
@@ -136,5 +167,57 @@ def parse_rek_detect(raw: dict, img_size: Tuple[int, int]) -> dict:
             "label": label,
             "confidence": item["Confidence"],
             "instances": instances,
+        })
+    return output
+
+
+def parse_rek_faces(raw: dict, img_size: Tuple[int, int]) -> dict:
+    """
+    Example input:
+        [
+            {'Confidence': 98.98920440673828,
+             'BoundingBox':
+                {'Height': 0.7440704107284546,
+                 'Left': 0.3230002522468567,
+                 'Top': 0.24780337512493134,
+                 'Width': 0.612679660320282},
+                'Confidence': 98.98920440673828},
+             '<Property>': {'Value': true, 'Confidence': 98.2},
+             'Pose': {'Roll': 11.1 'Yaw': 31.6, 'Pitch': 11.2}
+             'Landmarks': [
+                {'Type': "eyeLeft", 'X': 0.52, 'Y': 0.24}
+             ]
+            },
+        ]
+
+    Example output:
+        [
+            {'confidence': 98.9,
+             'boundingbox': (32, 24, 61, 74),  // (x, y, w, h)
+             'landmarks': {'eyeLeft': (520, 240), ..},
+            },
+        ]
+    """
+    # NOTE: ignoring the Emotions and the various properties for now
+    MANDATORY_KEYS = ["Confidence", "BoundingBox", "Landmarks"]
+
+    output = []
+    for item in raw:
+        if any(label not in item for label in MANDATORY_KEYS):
+            raise ValueError(f"One or more keys from {MANDATORY_KEYS} missing in {item}")
+        boundingbox = (
+            int(item["BoundingBox"]["Left"] * img_size[0]),
+            int(item["BoundingBox"]["Top"] * img_size[1]),
+            int(item["BoundingBox"]["Width"] * img_size[0]),
+            int(item["BoundingBox"]["Height"] * img_size[1])
+        )
+        landmarks = {
+            lm["Type"]: (lm["X"] * img_size[0], lm["Y"] * img_size[1])
+            for lm in item["Landmarks"]
+        }
+        output.append({
+            "confidence": item["Confidence"],
+            "boundingbox": boundingbox,
+            "landmarks": landmarks,
         })
     return output
